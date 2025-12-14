@@ -1,27 +1,124 @@
+
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Phaser sanity test</title>
-<div id="game" style="width:100vw;height:100vh;background:#0a2239;color:#cfe9ff">Loading…</div>
+<title>Husky Hub</title>
+<style>html,body{margin:0;height:100%;background:#0a2239;color:#e9f2ff;font-family:system-ui}#game{width:100vw;height:100vh}</style>
+<div id="game">Loading…</div>
 <script>
 (function(){
+  // Add more pages here as you create them (filenames must exist in docs/)
+  var DOORS=[{label:'Schedule',url:'schedule.html',x:900,y:460}];
+
+  // Load Phaser (3.60) with a CDN fallback
   function load(src, ok, fail){ var s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=fail; document.head.appendChild(s); }
-  function start(){
-    if(!window.Phaser){ document.getElementById('game').textContent='Could not load Phaser'; return; }
-    document.getElementById('game').textContent='';
-    new Phaser.Game({
-      type: Phaser.CANVAS,
-      backgroundColor: '#0a2239',
-      parent: 'game',
-      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 960, height: 540 },
-      scene: { create(){
-        this.add.text(20,20,'Phaser '+Phaser.VERSION+' is running',{font:'20px Arial', fill:'#cfe9ff'});
-        const g=this.add.graphics(); g.fillStyle(0x6ed4ff,1).fillRect(80,500,800,24);
-      }}
-    });
-  }
   load('https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js', start, function(){
     load('https://unpkg.com/phaser@3.55.2/dist/phaser.min.js', start, start);
   });
+
+  function start(){
+    if(!window.Phaser){ document.getElementById('game').textContent='Could not load Phaser'; return; }
+
+    var W=960,H=540,WORLD=2000,G=1300;
+    var cursors, player, platforms, doors, hint;
+
+    new Phaser.Game({
+      type: Phaser.CANVAS, // Canvas is safest across browsers
+      backgroundColor: '#0a2239',
+      parent: 'game',
+      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: W, height: H },
+      physics: { default:'arcade', arcade:{ gravity:{ y:G }, debug:false } },
+      scene: { preload:preload, create:create, update:update }
+    });
+
+    function preload(){
+      // Make a 2x2 white texture to tint/scale for simple shapes
+      var g=this.add.graphics(); g.fillStyle(0xffffff,1).fillRect(0,0,2,2); g.generateTexture('white',2,2); g.destroy();
+    }
+
+    function create(){
+      this.physics.world.setBounds(0,0,WORLD,H);
+      this.cameras.main.setBounds(0,0,WORLD,H);
+
+      // Platforms
+      platforms=this.physics.add.staticGroup();
+      rect(platforms,WORLD/2,H-20,WORLD,40,0x6ed4ff); // ground ice
+      rect(platforms,700,420,320,24,0x6ed4ff);
+      rect(platforms,1150,350,260,24,0x6ed4ff);
+      rect(platforms,1650,280,240,24,0x6ed4ff);
+
+      // Player (placeholder husky rectangle)
+      player=this.physics.add.sprite(100,H-200,'white').setDisplaySize(38,30).setTint(0xeef7ff);
+      player.setBounce(0.1).setCollideWorldBounds(true);
+      this.physics.add.collider(player,platforms);
+
+      cursors=this.input.keyboard.createCursorKeys();
+
+      // Doors
+      doors=this.physics.add.staticGroup();
+      for(var i=0;i<DOORS.length;i++){
+        var d=DOORS[i];
+        var door=doors.create(d.x,d.y-40,'white').setDisplaySize(36,64).setTint(0xc3e7ff).refreshBody();
+        door.setData('url',d.url);
+        this.add.text(d.x,d.y-88,d.label,{fontSize:'16px',color:'#e9f2ff'}).setOrigin(0.5);
+      }
+
+      // Enter door with E
+      var keyE=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+      this.physics.add.overlap(player,doors,function(){ showHint(this,'Press E to enter'); },null,this);
+      this.input.keyboard.on('keydown-E',function(){
+        this.physics.overlap(player,doors,function(_p,door){
+          try{ localStorage.setItem('wedding_unlocked','1'); }catch(e){}
+          location.href=door.getData('url');
+        });
+      },this);
+
+      // Mobile tap = jump
+      this.input.on('pointerdown',function(){ if(player.body.blocked.down) player.setVelocityY(-520); },this);
+
+      // Camera + snow
+      this.cameras.main.startFollow(player,true,0.1,0.1);
+      addSnow(this);
+
+      // Help text
+      this.add.text(16,16,'← → move, Space/↑ jump, E enter door',{fontSize:'16px',color:'#cfe9ff'}).setScrollFactor(0);
+    }
+
+    function update(){
+      if(hint) hint.setVisible(false);
+      var speed=240;
+      if(cursors.left.isDown){ player.setVelocityX(-speed); player.setFlipX(true); }
+      else if(cursors.right.isDown){ player.setVelocityX(speed); player.setFlipX(false); }
+      else { player.setVelocityX(0); }
+      if((cursors.up.isDown||cursors.space.isDown) && player.body.blocked.down) player.setVelocityY(-520);
+    }
+
+    function rect(group,x,y,w,h,t){ var p=group.create(x,y,'white').setDisplaySize(w,h).refreshBody(); p.setTint(t); return p; }
+    function showHint(scene,msg){
+      if(!hint){ hint=scene.add.text(0,0,msg,{fontSize:'16px',color:'#fff',backgroundColor:'#173554aa',padding:{left:6,right:6,top:4,bottom:4}}).setScrollFactor(0); }
+      hint.setVisible(true).setPosition(W/2-hint.width/2,H-48);
+    }
+    // Snow — compatible with Phaser 3.60+ and falls back for older 3.55
+    function addSnow(scene){
+      var g=scene.add.graphics(); g.fillStyle(0xffffff,1); g.fillCircle(3,3,3); g.generateTexture('flake',6,6); g.destroy();
+      var worldW = scene.physics.world.bounds.width;
+      try {
+        // Phaser 3.60 style
+        scene.add.particles(0, 0, 'flake', {
+          x:{min:0,max:worldW}, y:0, lifespan:6000,
+          speedY:{min:50,max:130}, speedX:{min:-20,max:20},
+          scale:{start:0.6,end:0.1}, quantity:3, blendMode:'ADD'
+        });
+      } catch(e){
+        // Legacy fallback (Phaser 3.55.x)
+        var mgr=scene.add.particles('flake');
+        mgr.createEmitter({
+          x:{min:0,max:worldW}, y:0, lifespan:6000,
+          speedY:{min:50,max:130}, speedX:{min:-20,max:20},
+          scale:{start:0.6,end:0.1}, quantity:3, blendMode:'ADD'
+        });
+      }
+    }
+  }
 })();
 </script>
