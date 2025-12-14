@@ -1,146 +1,96 @@
+
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Husky Runner — Wedding</title>
+<title>Husky Game</title>
 <style>
-  html,body{margin:0;height:100%;background:#0b1b2a;color:#e9f2ff;font-family:system-ui,Segoe UI,Helvetica,Arial,sans-serif}
+  html,body{margin:0;height:100%;background:#0b1b2a;color:#e9f2ff;font-family:system-ui}
   #game{width:100vw;height:100vh}
-  .fallback{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
 </style>
 <div id="game"><div class="fallback">Loading…</div></div>
-<script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"
+        onerror="var s=document.createElement('script');s.src='https://unpkg.com/phaser@3.60.0/dist/phaser.min.js';document.head.appendChild(s)"></script>
 <script>
-(() => {
-  // Pages your doors should open (use relative links so GitHub Pages paths Just Work)
-  const DOORS = [
-    { label: "Schedule", url: "schedule.html", x: 900,  y: 460 },
-    { label: "RSVP",     url: "rsvp.html",     x: 1400, y: 380 },
-    { label: "FAQ",      url: "faq.html",      x: 1900, y: 300 },
-  ];
+(function(){
+  // Update these to match the pages you have (filenames must match case exactly)
+  const DOORS=[{label:'Schedule',url:'schedule.html',x:900,y:460}];
 
-  const WIDTH = 960, HEIGHT = 540, WORLD_W = 2400, G = 1300;
-
-  const config = {
-    type: Phaser.AUTO,
-    parent: "game",
-    width: WIDTH, height: HEIGHT,
-    physics: { default: "arcade", arcade: { gravity: { y: G }, debug: false } },
-    scene: { preload, create, update }
-  };
-
-  let cursors, keyE;
-  let player, platforms, doorsGroup, hintText;
-
-  new Phaser.Game(config);
-
-  function preload() {
-    // Create a 2x2 white texture we can tint/scale for rectangles (ground, doors, placeholder husky)
-    const g = this.add.graphics();
-    g.fillStyle(0xffffff, 1); g.fillRect(0, 0, 2, 2);
-    g.generateTexture("white", 2, 2); g.destroy();
-
-    // Optional: when you add art later
-    // this.load.spritesheet("husky", "assets/husky.png", { frameWidth: 32, frameHeight: 32 });
-    // this.load.image("background", "assets/winter-bg.png");
-    // this.load.image("door", "assets/door.png");
-  }
-
-  function create() {
-    // Snowy night backdrop
-    this.cameras.main.setBackgroundColor("#0a2239"); // deep blue
-    addSnow(this);
-
-    // World bounds and camera
-    this.physics.world.setBounds(0, 0, WORLD_W, HEIGHT);
-    this.cameras.main.setBounds(0, 0, WORLD_W, HEIGHT);
-
-    // Platforms (static bodies)
-    platforms = this.physics.add.staticGroup();
-    addPlatform(this, WORLD_W/2, HEIGHT-20, WORLD_W, 40, 0x6ed4ff); // ice ground
-    addPlatform(this, 700,  420, 320, 24,  0x6ed4ff);
-    addPlatform(this, 1150, 350, 260, 24,  0x6ed4ff);
-    addPlatform(this, 1650, 280, 240, 24,  0x6ed4ff);
-    addPlatform(this, 2050, 360, 300, 24,  0x6ed4ff);
-
-    // Player (placeholder husky = light rectangle; replace with sprite later)
-    player = this.physics.add.sprite(100, HEIGHT - 200, "white").setDisplaySize(38, 30).setTint(0xeef7ff);
-    player.setBounce(0.1).setCollideWorldBounds(true).body.setSize(38, 30);
-    this.physics.add.collider(player, platforms);
-
-    // Controls
-    cursors = this.input.keyboard.createCursorKeys();
-    keyE = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
-
-    // Doors
-    doorsGroup = this.physics.add.staticGroup();
-    for (const d of DOORS) {
-      const door = doorsGroup.create(d.x, d.y - 40, "white").setDisplaySize(36, 64).setTint(0xc3e7ff).refreshBody();
-      door.setData("url", d.url).setData("label", d.label);
-      // label above door
-      const label = this.add.text(d.x, d.y - 88, d.label, { fontSize: "16px", color: "#e9f2ff" }).setOrigin(0.5);
+  function boot(){
+    if(!window.Phaser){
+      document.querySelector('#game').innerHTML='<p style="padding:1rem">Could not load Phaser. Try reloading or disable tracker/ad blockers for cdn.jsdelivr.net.</p>';
+      return;
     }
-    // Overlap to show hint; entering happens only when E is pressed
-    this.physics.add.overlap(player, doorsGroup, () => showHint(this, "Press E to enter"), () => true, this);
+    document.querySelector('.fallback')?.remove();
 
-    // When E is pressed, if overlapping a door, go there
-    this.input.keyboard.on("keydown-E", () => {
-      this.physics.overlap(player, doorsGroup, (_p, door) => {
-        localStorage.setItem("wedding_unlocked", "1"); // simple "gate" flag
-        window.location.href = door.getData("url");
+    const W=960,H=540, WORLD=1600, G=1300;
+    let cursors,keyE,player,platforms,doors,hint;
+
+    new Phaser.Game({
+      type:Phaser.AUTO,parent:'game',width:W,height:H,
+      physics:{default:'arcade',arcade:{gravity:{y:G},debug:false}},
+      scene:{preload,create,update}
+    });
+
+    function preload(){
+      const g=this.add.graphics(); g.fillStyle(0xffffff,1); g.fillRect(0,0,2,2);
+      g.generateTexture('white',2,2); g.destroy();
+    }
+    function create(){
+      this.cameras.main.setBackgroundColor('#0a2239'); snow(this);
+      this.physics.world.setBounds(0,0,WORLD,H);
+      this.cameras.main.setBounds(0,0,WORLD,H);
+
+      platforms=this.physics.add.staticGroup();
+      block(platforms,WORLD/2,H-20,WORLD,40,0x6ed4ff); // ground
+      block(platforms,700,420,320,24,0x6ed4ff);
+      block(platforms,1150,350,260,24,0x6ed4ff);
+
+      player=this.physics.add.sprite(100,H-200,'white').setDisplaySize(38,30).setTint(0xeef7ff);
+      player.setBounce(0.1).setCollideWorldBounds(true);
+      this.physics.add.collider(player,platforms);
+
+      cursors=this.input.keyboard.createCursorKeys();
+      keyE=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+
+      doors=this.physics.add.staticGroup();
+      DOORS.forEach(d=>{
+        const door=doors.create(d.x,d.y-40,'white').setDisplaySize(36,64).setTint(0xc3e7ff).refreshBody();
+        door.setData('url',d.url);
+        this.add.text(d.x,d.y-88,d.label,{fontSize:'16px',color:'#e9f2ff'}).setOrigin(0.5);
       });
-    });
+      this.physics.add.overlap(player,doors,()=>showHint(this,'Press E to enter'));
+      this.input.keyboard.on('keydown-E',()=>{
+        this.physics.overlap(player,doors,(_p,door)=>{
+          localStorage.setItem('wedding_unlocked','1');
+          location.href=door.getData('url');
+        });
+      });
 
-    // Basic mobile support: tap to jump
-    this.input.on("pointerdown", () => {
-      if (player.body.blocked.down) player.setVelocityY(-520);
-    });
+      // Mobile tap = jump
+      this.input.on('pointerdown',()=>{ if (player.body.blocked.down) player.setVelocityY(-520); });
 
-    this.cameras.main.startFollow(player, true, 0.1, 0.1);
-    // On-screen help
-    this.add.text(16, 16, "← → move, Space/↑ jump, E enter door", { fontSize: "16px", color: "#cfe9ff" }).setScrollFactor(0);
-  }
-
-  function update() {
-    // Clear hint each frame; overlap will re-show if still at a door
-    if (hintText) { hintText.setVisible(false); }
-
-    // Horizontal move
-    const speed = 240;
-    if (cursors.left.isDown) {
-      player.setVelocityX(-speed); player.setFlipX(true);
-    } else if (cursors.right.isDown) {
-      player.setVelocityX(speed); player.setFlipX(false);
-    } else {
-      player.setVelocityX(0);
+      this.cameras.main.startFollow(player,true,0.1,0.1);
+      this.add.text(16,16,'← → move, Space/↑ jump, E enter door',{fontSize:'16px',color:'#cfe9ff'}).setScrollFactor(0);
     }
-    // Jump
-    if ((cursors.up.isDown || cursors.space.isDown) && player.body.blocked.down) {
-      player.setVelocityY(-520);
+    function update(){
+      if (hint) hint.setVisible(false);
+      const speed=240;
+      if (cursors.left.isDown){ player.setVelocityX(-speed); player.setFlipX(true); }
+      else if (cursors.right.isDown){ player.setVelocityX(speed); player.setFlipX(false); }
+      else { player.setVelocityX(0); }
+      if ((cursors.up.isDown||cursors.space.isDown) && player.body.blocked.down) player.setVelocityY(-520);
+    }
+    function block(group,x,y,w,h,tint){ const p=group.create(x,y,'white').setDisplaySize(w,h).refreshBody(); p.setTint(tint); return p; }
+    function showHint(scene,msg){
+      if(!hint){ hint=scene.add.text(0,0,msg,{fontSize:'16px',color:'#fff',backgroundColor:'#173554aa',padding:{left:6,right:6,top:4,bottom:4}}).setScrollFactor(0); }
+      hint.setVisible(true).setPosition(W/2-hint.width/2,H-48);
+    }
+    function snow(scene){
+      const g=scene.add.graphics(); g.fillStyle(0xffffff,1); g.fillCircle(3,3,3); g.generateTexture('flake',6,6); g.destroy();
+      const particles=scene.add.particles('flake');
+      particles.createEmitter({x:{min:0,max:WORLD},y:0,lifespan:6000,speedY:{min:50,max:130},speedX:{min:-20,max:20},scale:{start:0.6,end:0.1},quantity:3,blendMode:'ADD'});
     }
   }
-
-  // Helpers
-  function addPlatform(scene, x, y, w, h, tint) {
-    const p = platforms.create(x, y, "white").setDisplaySize(w, h).refreshBody();
-    p.setTint(tint);
-    return p;
-  }
-  function showHint(scene, msg) {
-    if (!hintText) {
-      hintText = scene.add.text(0, 0, msg, { fontSize: "16px", color: "#fff", backgroundColor:"#173554aa", padding:{left:6,right:6,top:4,bottom:4} }).setScrollFactor(0);
-    }
-    hintText.setVisible(true).setPosition(WIDTH/2 - hintText.width/2, HEIGHT - 48);
-  }
-  function addSnow(scene) {
-    // make a small circular “flake” texture
-    const g = scene.add.graphics();
-    g.fillStyle(0xffffff, 1); g.fillCircle(3, 3, 3); g.generateTexture("flake", 6, 6); g.destroy();
-    const particles = scene.add.particles("flake");
-    particles.createEmitter({
-      x: { min: 0, max: WORLD_W }, y: 0, lifespan: 6000,
-      speedY: { min: 50, max: 130 }, speedX: { min: -20, max: 20 },
-      scale: { start: 0.6, end: 0.1 }, quantity: 3, blendMode: "ADD"
-    });
-  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
 })();
 </script>
