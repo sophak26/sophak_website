@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Welcome</title>
+<style>
+  body{margin:0;font-family:system-ui;background:#0b1b2a;color:#e9f2ff}
+  .wrap{max-width:720px;margin:0 auto;padding:24px}
+  a.btn{display:block;margin:12px 0;padding:14px 18px;background:#1a3d5e;color:#e9f2ff;text-decoration:none;border-radius:10px}
+  a.btn:hover{background:#235078}
+  small{opacity:.85}
+</style>
+<script>
+  // Let mobile guests bypass the game
+  try { localStorage.setItem('wedding_unlocked','1'); } catch(e){}
+</script>
+<div class="wrap">
+  <h1>Welcome!</h1>
+  <p>Tap a section to enter.</p>
+  <a class="btn" href="schedule.html">Schedule</a>
+  <a class="btn" href="rsvp.html">RSVP</a>
+  <a class="btn" href="faq.html">FAQ</a>
+  <p><small>On a computer? <a href="play.html">Play the husky game</a>.</small></p>
+</div>
