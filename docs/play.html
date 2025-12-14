@@ -59,11 +59,12 @@
 
       // Snowfall (screen‑space so it always covers the view)
       particles = this.add.particles('flake');
-      particles.setScrollFactor(0).setDepth(-5);
+      if (particles.setScrollFactor) particles.setScrollFactor(0); // safe if method exists
+      particles.setDepth(-5);
       particles.createEmitter({
-        x:{min:0,max:W}, y:0, lifespan:6000,
-        speedY:{min:50,max:130}, speedX:{min:-20,max:20},
-        scale:{start:0.6,end:0.1}, quantity:3, blendMode:'ADD'
+      x:{min:0,max:W}, y:0, lifespan:6000,
+      speedY:{min:50,max:130}, speedX:{min:-20,max:20},
+      scale:{start:0.6,end:0.1}, quantity:3, blendMode:'ADD'
       });
 
       // World and camera
