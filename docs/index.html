@@ -1,1 +1,14 @@
-<script>if(!localStorage.getItem('wedding_unlocked'))location.href='play.html'</script>
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wedding</title>
+<script>
+(function(){
+  var params = new URLSearchParams(location.search);
+  var forcePlay = params.get('play') === '1'; // add ?play=1 to force the game on mobile
+  var isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
+  var small = Math.min(window.innerWidth, window.innerHeight) < 600;
+  location.replace(!forcePlay && (isTouch || small) ? 'menu.html' : 'play.html');
+})();
+</script>
+<p>Loading…</p>
