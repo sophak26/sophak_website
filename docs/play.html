@@ -1,134 +1,27 @@
-
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Husky Game</title>
-<style>
-  html,body{margin:0;height:100%;background:#0b1b2a;color:#e9f2ff;font-family:system-ui}
-  #game{width:100vw;height:100vh}
-</style>
-<div id="game"><div class="fallback" style="padding:1rem">Loading…</div></div>
+<title>Phaser sanity test</title>
+<div id="game" style="width:100vw;height:100vh;background:#0a2239;color:#cfe9ff">Loading…</div>
 <script>
 (function(){
-  // Update/expand this list as you add pages
-  const DOORS = [
-    { label:'Schedule', url:'schedule.html', x:900, y:460 },
-  ];
-
-  // Load Phaser with a reliable CDN fallback, then start()
-  function loadPhaser(ready){
-    const s1 = document.createElement('script');
-    s1.src = 'https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js';
-    s1.onload = ready;
-    s1.onerror = function(){
-      const s2 = document.createElement('script');
-      s2.src = 'https://unpkg.com/phaser@3.60.0/dist/phaser.min.js';
-      s2.onload = ready;
-      s2.onerror = function(){
-        document.querySelector('#game').innerHTML =
-          '<p style="padding:1rem">Could not load Phaser. Try reloading or allow jsdelivr/unpkg in any blockers.</p>';
-      };
-      document.head.appendChild(s2);
-    };
-    document.head.appendChild(s1);
-  }
-
-  loadPhaser(start);
-
+  function load(src, ok, fail){ var s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=fail; document.head.appendChild(s); }
   function start(){
-    if (!window.Phaser) return;
-    document.querySelector('.fallback')?.remove();
-
-    const W=960,H=540,WORLD=1600,G=1300;
-    let cursors,player,platforms,doors,hint;
-
+    if(!window.Phaser){ document.getElementById('game').textContent='Could not load Phaser'; return; }
+    document.getElementById('game').textContent='';
     new Phaser.Game({
-      type: Phaser.AUTO,
+      type: Phaser.CANVAS,
+      backgroundColor: '#0a2239',
       parent: 'game',
-      width: W, height: H,
-      physics: { default:'arcade', arcade:{ gravity:{ y:G }, debug:false } },
-      scene: { preload, create, update }
+      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 960, height: 540 },
+      scene: { create(){
+        this.add.text(20,20,'Phaser '+Phaser.VERSION+' is running',{font:'20px Arial', fill:'#cfe9ff'});
+        const g=this.add.graphics(); g.fillStyle(0x6ed4ff,1).fillRect(80,500,800,24);
+      }}
     });
-
-    function preload(){
-      const g=this.add.graphics(); g.fillStyle(0xffffff,1); g.fillRect(0,0,2,2);
-      g.generateTexture('white',2,2); g.destroy();
-    }
-
-    function create(){
-      this.cameras.main.setBackgroundColor('#0a2239');
-      addSnow(this);
-
-      this.physics.world.setBounds(0,0,WORLD,H);
-      this.cameras.main.setBounds(0,0,WORLD,H);
-
-      platforms=this.physics.add.staticGroup();
-      addPlatform(this,WORLD/2,H-20,WORLD,40,0x6ed4ff);
-      addPlatform(this,700,420,320,24,0x6ed4ff);
-      addPlatform(this,1150,350,260,24,0x6ed4ff);
-
-      player=this.physics.add.sprite(100,H-200,'white')
-        .setDisplaySize(38,30).setTint(0xeef7ff);
-      player.setBounce(0.1).setCollideWorldBounds(true);
-      this.physics.add.collider(player,platforms);
-
-      cursors=this.input.keyboard.createCursorKeys();
-
-      doors=this.physics.add.staticGroup();
-      DOORS.forEach(d=>{
-        const door=doors.create(d.x,d.y-40,'white')
-          .setDisplaySize(36,64).setTint(0xc3e7ff).refreshBody();
-        door.setData('url',d.url);
-        this.add.text(d.x,d.y-88,d.label,{fontSize:'16px',color:'#e9f2ff'}).setOrigin(0.5);
-      });
-
-      // Show hint when near a door; press E to enter
-      this.physics.add.overlap(player,doors,()=>showHint(this,'Press E to enter'));
-      this.input.keyboard.on('keydown-E',()=>{
-        this.physics.overlap(player,doors,(_p,door)=>{
-          localStorage.setItem('wedding_unlocked','1');
-          location.href = door.getData('url');
-        });
-      });
-
-      // Mobile tap = jump
-      this.input.on('pointerdown',()=>{ if (player.body.blocked.down) player.setVelocityY(-520); });
-
-      this.cameras.main.startFollow(player,true,0.1,0.1);
-      this.add.text(16,16,'← → move, Space/↑ jump, E enter door',
-        {fontSize:'16px',color:'#cfe9ff'}).setScrollFactor(0);
-    }
-
-    function update(){
-      if (hint) hint.setVisible(false);
-      const speed=240;
-      if (cursors.left.isDown){ player.setVelocityX(-speed); player.setFlipX(true); }
-      else if (cursors.right.isDown){ player.setVelocityX(speed); player.setFlipX(false); }
-      else { player.setVelocityX(0); }
-      if ((cursors.up.isDown||cursors.space.isDown) && player.body.blocked.down) player.setVelocityY(-520);
-    }
-
-    // Helpers
-    function addPlatform(scene,x,y,w,h,tint){
-      const p=platforms.create(x,y,'white').setDisplaySize(w,h).refreshBody(); p.setTint(tint); return p;
-    }
-    function showHint(scene,msg){
-      if(!hint){
-        hint=scene.add.text(0,0,msg,{fontSize:'16px',color:'#fff',
-          backgroundColor:'#173554aa',padding:{left:6,right:6,top:4,bottom:4}}).setScrollFactor(0);
-      }
-      hint.setVisible(true).setPosition(W/2-hint.width/2,H-48);
-    }
-    function addSnow(scene){
-      const g=scene.add.graphics(); g.fillStyle(0xffffff,1); g.fillCircle(3,3,3);
-      g.generateTexture('flake',6,6); g.destroy();
-      const particles=scene.add.particles('flake');
-      particles.createEmitter({
-        x:{min:0,max:WORLD}, y:0, lifespan:6000,
-        speedY:{min:50,max:130}, speedX:{min:-20,max:20},
-        scale:{start:0.6,end:0.1}, quantity:3, blendMode:'ADD'
-      });
-    }
   }
+  load('https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js', start, function(){
+    load('https://unpkg.com/phaser@3.60.0/dist/phaser.min.js', start, start);
+  });
 })();
 </script>
